@@ -4,35 +4,116 @@
 
 /* ######################## STORAGE MODULES ############################## */
 
+module global_simulation(in, out);
+/* this is the global simulation file. all data is stored in
+this simulation file. */
+
+master_control global_control(.
+
+RAM_1port global_RAM(.address(address),
+							.data(data),
+							.aclr(reset),
+							.clock(CLOCK_50),
+							.wren(write_enable)
+							.q(memory_out)
+							);
+
+/* ######################## FARM SIMULATION MODULES ###################### */
+
+module farm_control(things);
+endmodule
+
+module calc_crop_yield(en, conditions, cropA_init, cropC_init, cropA_yield, cropC_yield);
+	input enable;
+	input [3:0] conditions;
+	input [7:0] cropA_init;
+	input [7:0] cropC_init;
+	output [7:0] cropA_yield;
+	output [7:0] cropC_yield;
+	
+	begin initial
+	$display("to-do");
+	end
+
+endmodule
 
 
 /* ######################## MARKET SIMULATION MODULES #################### */
 
-module calculate 
-
-
-module price_gen_datapath(clock, current_price, randomgen, new_price);
-	/* generates the price of a stock. */
+module stock_qty_gen_datapath(enable, clock_50, sell_amt, stock_price, qty_init, qty_out, cash_init, cash_out);
+	/* generates the leftover stock. must be instantiated twice for each stock in the final design! */
+	input enable;
+	input clock_50;
+	input [7:0] sell_amt;
+	input [11:0] stock_price;
+	input [7:0] qty_init;
+	input [23:0] cash_init;
+	output [7:0] qty_out;
+	output [23:0] cash_out;
 	
-	parameter UPPER_BOUND = 100;
+	always@(*) begin: calculate
+		if (!enable)
+			disable calculate; //check this
+		else if (sell_amt > qty_init) begin
+			cash_out = cash_in;
+			qty_out = qty_in;
+			end
+		else if (sell_amt <= qty_init) begin
+			cash_out = cash_in + (sell_amt * stock_price);
+			qty_out = qty_in - sell_amt;
+			end
+		end
+	
+	
+endmodule
+
+
+module price_gen_datapath(enable, clock_50, price_init, price_out);
+	/* generates the price of a stock. must be instantiated twice for each stock in the final design!*/
+	
+	parameter UPPER_BOUND = 2'hFF;
 	/* An upper bound on the price. */
-	parameter LOWER_BOUND 20;
+	parameter LOWER_BOUND 2'h00;
 	/* A lower bound on the price of the stock.*/
-	parameter FLUCTUATION = "ONE EIGHTH";
-	/* Tells how much the stock is allowed to vary. */
+	parameter FLUCTUATION = 4'b0101;
+	/* Tells how much the stock is allowed to vary. Corresponds to upper bound in RNG module.
+		DO NOT MAKE FLUCTUATION == 8 */
 	
 	
 	/* declare inputs and outputs. */
-	input clock;
-	input current_price;
-	input randomgen;
-	output new_price;
+	input enable; //fix this
+	input clock_50;
+	input [11:0] price_init;
+	output reg [11:0] price_out;
 	
-	reg range = ()
+	reg [7:0] price_adjustment;
 	
-	RNG random(.clock(clock),
-					.range(),
-					.randomgen())
+	RNG random_ngen(.clock_50(clock_50),
+				 .upper_bound(FLUCTUATION),
+				 .random_output(price_adjustment)
+				 );
+	
+	assign bounded = (price_init <= UPPER_BOUND) & (price_init >= LOWER_BOUND)
+	assign neg_sign = price_adjustment[FLUCTUATION + 1'b1]
+	
+	always @(*) begin: get_price
+		if (!enable)
+			disable get_price; // check to make sure that the 'disable' command works.
+		if (bounded) begin
+			if (neg_sign)
+				price_out = price_init - price_adjustment[FLUCTUATION:0];
+			else
+				price_out = price_init + price_adjustment[FLUCTUATION:0];
+			end
+		else begin
+			if (price_init > UPPER_BOUND)
+				price_out = price_init - (price_adjustment[FLUCTUATION:0] << 1);
+			else if (price_init < LOWER_BOUND)
+				price_out = price_init - (price_adjustment[FLUCTUATION:0] << 1);
+				
+	end
+	
+	
 endmodule
 
 
